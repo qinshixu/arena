@@ -1,0 +1,15 @@
+# Default values for mxjob.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+
+
+
+# enable RDMA support
+enableRDMA: false
+
+retry: 0
+
+annotations: {}
+
+# annotations:

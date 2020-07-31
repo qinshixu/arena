@@ -1,0 +1,133 @@
+{{- $gpuCount := .Values.gpuCount -}}
+{{- $dataDirs := .Values.dataDirs -}}
+apiVersion: kubeflow.org/v1beta1
+kind: MXJob
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ template "mxjob.name" . }}
+    chart: {{ template "mxjob.chart" . }}
+    release: {{ .Release.Name }}
+    createdBy: "MXJob"
+spec:
+  cleanPodPolicy: None
+  jobMode: MXTrain
+  mxReplicaSpecs:
+    Scheduler:
+      replicas: 1
+      restartPolicy: Never
+      template:
+        spec:
+          {{- if ne (len .Values.nodeSelectors) 0 }}
+          nodeSelector:
+          {{- range $nodeKey,$nodeVal := .Values.nodeSelectors }}
+          {{ $nodeKey }}: "{{ $nodeVal }}"
+          {{- end }}
+          {{- end }}
+          containers:
+            - name: mxnet
+              image: "{{ .Values.image }}"
+              imagePullPolicy: {{ .Values.imagePullPolicy }}
+              command:
+                - bpslaunch
+              resources:
+                requests:
+                  cpu: 1
+    Server:
+      replicas: {{ .Values.workers }}
+      restartPolicy: Never
+      template:
+        spec:
+          {{- if ne (len .Values.nodeSelectors) 0 }}
+          nodeSelector:
+          {{- range $nodeKey,$nodeVal := .Values.nodeSelectors }}
+          {{ $nodeKey }}: "{{ $nodeVal }}"
+          {{- end }}
+          {{- end }}
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - preference:
+                    matchExpressions:
+                      - key: beta.kubernetes.io/server-type
+                        operator: In
+                        values:
+                          - cpu
+                  weight: 1
+          containers:
+            - name: mxnet
+              image: {{ .Values.image }}
+              imagePullPolicy: {{ .Values.imagePullPolicy }}
+              command:
+                - bpslaunch
+              resources:
+                requests:
+                  cpu: {{ .Values.server_cpu}}
+    Worker:
+      replicas: {{ .Values.workers }}
+      restartPolicy: Never
+      template:
+        spec:
+          {{- if ne (len .Values.nodeSelectors) 0 }}
+          nodeSelector:
+          {{- range $nodeKey,$nodeVal := .Values.nodeSelectors }}
+          {{ $nodeKey }}: "{{ $nodeVal }}"
+          {{- end }}
+          {{- end }}
+          containers:
+            - name: mxnet
+              image: {{ .Values.image }}
+              imagePullPolicy: {{ .Values.imagePullPolicy }}
+              workingDir: {{ .Values.workingDir }}
+              command:
+                - bpslaunch
+              args:
+                - |
+                  {{ .Values.command }}
+              env:
+                {{- range $key, $value := .Values.envs }}
+                - name: "{{ $key }}"
+                  value: "{{ $value }}"
+                {{- end }}
+              resources:
+                requests:
+                  {{- if gt (int $gpuCount) 0}}
+                  nvidia.com/gpu: {{ $gpuCount | quote }}
+                  {{- end }}
+                  {{- if .Values.cpu }}
+                  cpu: {{ .Values.cpu | quote }}
+                  {{- end }}
+                  {{- if .Values.memory }}
+                  memory: {{ .Values.memory | quote }}
+                  {{- end }}
+                limits:
+                  {{- if gt (int $gpuCount) 0}}
+                  nvidia.com/gpu: {{ $gpuCount | quote }}
+                  {{- end }}
+                  {{- if .Values.cpu }}
+                  cpu: {{ .Values.cpu | quote }}
+                  {{- end }}
+                  {{- if .Values.memory }}
+                  memory: {{ .Values.memory | quote }}
+                  {{- end }}
+              volumeMounts:
+                - mountPath: /dev/shm
+                  name: dshm
+                {{- if $dataDirs }}
+                {{- range $dataDirs }}
+                - mountPath: {{ .containerPath }}
+                  name: {{ .name }}
+                {{- end }}
+                {{- end }}
+          volumes:
+            - emptyDir:
+                medium: Memory
+              name: dshm
+            {{- if $dataDirs }}
+            {{- range $dataDirs }}
+            - hostPath:
+                path: {{ .hostPath }}
+              name: {{ .name }}
+            {{- end }}
+            {{- end }}
+  successPolicy: AllWorkers

@@ -379,6 +379,7 @@ Available Commands:
   tfjob,tf             Submit a TFJob.
   horovod,hj           Submit a Horovod Job.
   mpijob,mpi           Submit a MPIJob.
+  mxjob,mj             Submit a MXJob.
   pytorchjob,pytorch   Submit a PyTorchJob.
   standalonejob,sj     Submit a standalone Job.
   tfserving,tfserving  Submit a Serving Job.
@@ -406,6 +407,7 @@ func NewSubmitCommand() *cobra.Command {
 	command.AddCommand(NewSparkApplicationCommand())
 
 	command.AddCommand(NewVolcanoJobCommand())
+	command.AddCommand(NewSubmitMXJobCommand())
 
 	return command
 }
