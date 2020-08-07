@@ -5,13 +5,20 @@ go 1.13
 require (
 	github.com/go-openapi/spec v0.19.2
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
+	github.com/golang/groupcache v0.0.0-20190129154638-5b532d6fd5ef // indirect
 	github.com/golang/protobuf v1.3.2
-	github.com/kubeflow/common v0.3.1 // indirect
+	github.com/google/go-cmp v0.4.0 // indirect
+	github.com/imdario/mergo v0.3.7 // indirect
+	github.com/json-iterator/go v1.1.9 // indirect
 	github.com/kubeflow/mxnet-operator v1.0.0
 	github.com/mitchellh/go-homedir v1.1.0
+	github.com/onsi/ginkgo v1.10.1 // indirect
+	github.com/onsi/gomega v1.7.0 // indirect
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/cobra v0.0.5
 	github.com/stretchr/testify v1.4.0
+	golang.org/x/sys v0.0.0-20200122134326-e047566fdf82 // indirect
+	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/yaml.v2 v2.2.8
 	istio.io/api v0.0.0-20180824201241-76349c53b87f
 	k8s.io/api v0.16.9
@@ -21,7 +28,6 @@ require (
 )
 
 replace (
-	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.0
 	k8s.io/api => k8s.io/api v0.16.9
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.16.9
 	k8s.io/apimachinery => k8s.io/apimachinery v0.16.10-beta.0

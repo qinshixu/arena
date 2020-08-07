@@ -18,5 +18,5 @@ data:
   {{ $configFileInfo.containerFileName }}: |-
   {{ $configFileInfo.content | indent 4 }}
   {{- end }}
-  {{- end }}
-  {{- end }}
+{{- end }}
+{{- end }}

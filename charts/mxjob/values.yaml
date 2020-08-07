@@ -12,4 +12,12 @@ retry: 0
 
 annotations: {}
 
+successPolicy: AllWorkers
+
+cleanPodPolicy: None
+
+SchedulerReplicas: 1
+
+shmSize: 2Gi
+
 # annotations:

@@ -1,5 +1,6 @@
 {{- $gpuCount := .Values.gpuCount -}}
 {{- $dataDirs := .Values.dataDirs -}}
+{{- $cleanPodPolicy := .Values.cleanPodPolicy -}}
 apiVersion: kubeflow.org/v1beta1
 kind: MXJob
 metadata:
@@ -10,11 +11,18 @@ metadata:
     release: {{ .Release.Name }}
     createdBy: "MXJob"
 spec:
+{{- if .Values.cleanPodPolicy }}
+{{- if eq "None" $cleanPodPolicy }}
   cleanPodPolicy: None
+{{- end }}
+{{- if eq "Running" $cleanPodPolicy }}
+  cleanPodPolicy: Running
+{{- end }}
+{{- end }}
   jobMode: MXTrain
   mxReplicaSpecs:
     Scheduler:
-      replicas: 1
+      replicas: {{ .Values.schedulerReplicas }}
       restartPolicy: Never
       template:
         spec:
@@ -24,15 +32,48 @@ spec:
           {{ $nodeKey }}: "{{ $nodeVal }}"
           {{- end }}
           {{- end }}
+          tolerations:
+          {{- range $tolerationKey := .Values.tolerations }}
+            {{- if eq $tolerationKey "all" }}
+            - operator: "Exists"
+            {{- else }}
+            - key: "{{ $tolerationKey }}"
+              operator: "Exists"
+            {{- end }}
+          {{- end }}
+          annotations:
+          {{- range $key, $value := .Values.annotations }}
+            {{ $key }}: {{ $value | quote }}
+          {{- end }}
+          {{- if ne (len .Values.imagePullSecrets) 0 }}
+          imagePullSecrets:
+          {{- range $imagePullSecret := .Values.imagePullSecrets }}
+            - name: "{{ $imagePullSecret }}"
+          {{- end }}
+          {{- end }}
           containers:
             - name: mxnet
               image: "{{ .Values.image }}"
               imagePullPolicy: {{ .Values.imagePullPolicy }}
               command:
-                - bpslaunch
+                - "sh"
+                - "-c"
+                - "{{ .Values.command }}"
               resources:
                 requests:
-                  cpu: 1
+                  {{- if .Values.schedulerCPU }}
+                  cpu: {{ .Values.schedulerCPU | quote }}
+                  {{- end }}
+                  {{- if .Values.schedulerMemory }}
+                  memory: {{ .Values.schedulerMemory | quote }}
+                  {{- end }}
+                limits:
+                {{- if .Values.schedulerCPU }}
+                  cpu: {{ .Values.schedulerCPU | quote }}
+                  {{- end }}
+                  {{- if .Values.schedulerMemory }}
+                  memory: {{ .Values.schedulerMemory | quote }}
+                  {{- end }}
     Server:
       replicas: {{ .Values.workers }}
       restartPolicy: Never
@@ -44,25 +85,48 @@ spec:
           {{ $nodeKey }}: "{{ $nodeVal }}"
           {{- end }}
           {{- end }}
-          affinity:
-            nodeAffinity:
-              preferredDuringSchedulingIgnoredDuringExecution:
-                - preference:
-                    matchExpressions:
-                      - key: beta.kubernetes.io/server-type
-                        operator: In
-                        values:
-                          - cpu
-                  weight: 1
+          tolerations:
+          {{- range $tolerationKey := .Values.tolerations }}
+            {{- if eq $tolerationKey "all" }}
+            - operator: "Exists"
+            {{- else }}
+            - key: "{{ $tolerationKey }}"
+              operator: "Exists"
+            {{- end }}
+          {{- end }}
+          annotations:
+            {{- range $key, $value := .Values.annotations }}
+              {{ $key }}: {{ $value | quote }}
+            {{- end }}
+          {{- if ne (len .Values.imagePullSecrets) 0 }}
+          imagePullSecrets:
+          {{- range $imagePullSecret := .Values.imagePullSecrets }}
+            - name: "{{ $imagePullSecret }}"
+            {{- end }}
+          {{- end }}
           containers:
             - name: mxnet
               image: {{ .Values.image }}
               imagePullPolicy: {{ .Values.imagePullPolicy }}
               command:
-                - bpslaunch
+                - "sh"
+                - "-c"
+                - "{{ .Values.command }}"
               resources:
                 requests:
-                  cpu: {{ .Values.server_cpu}}
+                  {{- if .Values.serverCPU }}
+                  cpu: {{ .Values.serveCPU | quote }}
+                  {{- end }}
+                  {{- if .Values.serverMemory }}
+                  memory: {{ .Values.serverMemory | quote }}
+                  {{- end }}
+                limits:
+                  {{- if .Values.serverCPU }}
+                  cpu: {{ .Values.serveCPU | quote }}
+                  {{- end }}
+                  {{- if .Values.serverMemory }}
+                  memory: {{ .Values.serverMemory | quote }}
+                  {{- end }}
     Worker:
       replicas: {{ .Values.workers }}
       restartPolicy: Never
@@ -71,19 +135,35 @@ spec:
           {{- if ne (len .Values.nodeSelectors) 0 }}
           nodeSelector:
           {{- range $nodeKey,$nodeVal := .Values.nodeSelectors }}
-          {{ $nodeKey }}: "{{ $nodeVal }}"
+            {{ $nodeKey }}: "{{ $nodeVal }}"
+          {{- end }}
+          {{- end }}
+          tolerations:
+          {{- range $tolerationKey := .Values.tolerations }}
+            {{- if eq $tolerationKey "all" }}
+            - operator: "Exists"
+            {{- else }}
+            - key: "{{ $tolerationKey }}"
+              operator: "Exists"
+            {{- end }}
+          {{- end }}
+          {{- if ne (len .Values.imagePullSecrets) 0 }}
+          imagePullSecrets:
+          {{- range $imagePullSecret := .Values.imagePullSecrets }}
+            - name: "{{ $imagePullSecret }}"
           {{- end }}
           {{- end }}
           containers:
             - name: mxnet
               image: {{ .Values.image }}
               imagePullPolicy: {{ .Values.imagePullPolicy }}
+              {{- if .Values.workingDir }}
               workingDir: {{ .Values.workingDir }}
+              {{- end }}
               command:
-                - bpslaunch
-              args:
-                - |
-                  {{ .Values.command }}
+                - "sh"
+                - "-c"
+                - "{{ .Values.command }}"
               env:
                 {{- range $key, $value := .Values.envs }}
                 - name: "{{ $key }}"
@@ -94,21 +174,21 @@ spec:
                   {{- if gt (int $gpuCount) 0}}
                   nvidia.com/gpu: {{ $gpuCount | quote }}
                   {{- end }}
-                  {{- if .Values.cpu }}
-                  cpu: {{ .Values.cpu | quote }}
+                  {{- if .Values.WorkerCPU }}
+                  cpu: {{ .Values.WorkerCPU | quote }}
                   {{- end }}
-                  {{- if .Values.memory }}
-                  memory: {{ .Values.memory | quote }}
+                  {{- if .Values.WorkerMemory }}
+                  memory: {{ .Values.WorkerMemory | quote }}
                   {{- end }}
                 limits:
                   {{- if gt (int $gpuCount) 0}}
                   nvidia.com/gpu: {{ $gpuCount | quote }}
                   {{- end }}
-                  {{- if .Values.cpu }}
+                  {{- if .Values.WorkerCPU }}
                   cpu: {{ .Values.cpu | quote }}
                   {{- end }}
-                  {{- if .Values.memory }}
-                  memory: {{ .Values.memory | quote }}
+                  {{- if .Values.WorkerMemory }}
+                  memory: {{ .Values.WorkerMemory | quote }}
                   {{- end }}
               volumeMounts:
                 - mountPath: /dev/shm
@@ -122,6 +202,7 @@ spec:
           volumes:
             - emptyDir:
                 medium: Memory
+                sizeLimit: {{ .Values.shmSize }}
               name: dshm
             {{- if $dataDirs }}
             {{- range $dataDirs }}
@@ -130,4 +211,4 @@ spec:
               name: {{ .name }}
             {{- end }}
             {{- end }}
-  successPolicy: AllWorkers
+  successPolicy: {{ .Values.successPolicy }}
