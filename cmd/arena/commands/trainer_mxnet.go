@@ -2,14 +2,14 @@ package commands
 
 import (
 	"fmt"
+	"github.com/kubeflow/arena/pkg/types"
 	mxv1beta1 "github.com/kubeflow/mxnet-operator/pkg/apis/mxnet/v1beta1"
 	"github.com/kubeflow/mxnet-operator/pkg/client/clientset/versioned"
-	"strings"
-	"github.com/kubeflow/arena/pkg/types"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"strings"
 
 	"time"
 )
@@ -39,7 +39,7 @@ func initMXJobClient() (clientset *versioned.Clientset, err error) {
 // MX Job Information
 type MXJob struct {
 	*BasicJobInfo
-	mxjob    mxv1beta1.MXJob
+	mxjob        mxv1beta1.MXJob
 	pods         []v1.Pod // all the pods including statefulset and job
 	chiefPod     v1.Pod   // the chief pod
 	requestedGPU int64
@@ -98,7 +98,7 @@ func (mj *MXJob) EndTime() *metav1.Time {
 	if mj.mxjob.Status.CompletionTime == nil {
 		return nil
 	}
-	if mj.GetStatus() == "SUCCEEDED" ||  mj.GetStatus() == "FAILED" {
+	if mj.GetStatus() == "SUCCEEDED" || mj.GetStatus() == "FAILED" {
 		return mj.mxjob.Status.CompletionTime
 	}
 	return nil
@@ -216,9 +216,9 @@ func (mj *MXJob) GetPriorityClass() string {
 
 // MX Job trainer
 type MXJobTrainer struct {
-	client       *kubernetes.Clientset
+	client      *kubernetes.Clientset
 	mxjobClient *versioned.Clientset
-	trainerType  string
+	trainerType string
 	// check if it's enabled
 	enabled bool
 }
@@ -253,9 +253,9 @@ func NewMXJobTrainer(client *kubernetes.Clientset) Trainer {
 	}
 	return &MXJobTrainer{
 		mxjobClient: mxjobClient,
-		client:       client,
-		trainerType:  defaultMXJobTrainingType,
-		enabled:      true,
+		client:      client,
+		trainerType: defaultMXJobTrainingType,
+		enabled:     true,
 	}
 }
 
@@ -319,7 +319,7 @@ func (mt *MXJobTrainer) getTrainingJob(name, namespace string) (TrainingJob, err
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ListOptions",
 			APIVersion: "v1",
-		}, LabelSelector: fmt.Sprintf("mxnet_job_name=%s", name),
+		}, LabelSelector: fmt.Sprintf("release=%s", name),
 	})
 	if err != nil {
 		return nil, err
@@ -331,7 +331,7 @@ func (mt *MXJobTrainer) getTrainingJob(name, namespace string) (TrainingJob, err
 			resources: podResources(pods),
 			name:      name,
 		},
-		mxjob:   mxjob,
+		mxjob:       mxjob,
 		chiefPod:    chiefPod,
 		pods:        pods,
 		trainerType: mt.Type(),
@@ -359,7 +359,7 @@ func (mt *MXJobTrainer) getTrainingJobFromCache(name, ns string) (TrainingJob, e
 			resources: podResources(pods),
 			name:      name,
 		},
-		mxjob:   mxjob,
+		mxjob:       mxjob,
 		chiefPod:    chiefPod,
 		pods:        pods,
 		trainerType: mt.Type(),
@@ -382,7 +382,7 @@ func (mt *MXJobTrainer) isMXJob(name, ns string, item mxv1beta1.MXJob) bool {
 	} else {
 		return false
 	}
-	if val, ok := item.Labels["app"]; ok && (val == "mxjob") {
+	if val, ok := item.Labels["app"]; ok && (val == defaultMXJobTrainingType) {
 		log.Debugf("the mxjob %s with labels %s is found.", item.Name, val)
 	} else {
 		return false
@@ -395,7 +395,12 @@ func (mt *MXJobTrainer) isMXJob(name, ns string, item mxv1beta1.MXJob) bool {
 
 func (mt *MXJobTrainer) isMXJobPod(name, ns string, item v1.Pod) bool {
 	log.Debugf("pod.name: %s: %v", item.Name, item.Labels)
-	if val, ok := item.Labels["mxnet_job_name"]; ok && (val == name) {
+	if val, ok := item.Labels["release"]; ok && (val == name) {
+		log.Debugf("the mxjob %s with labels %s", item.Name, val)
+	} else {
+		return false
+	}
+	if val, ok := item.Labels["app"]; ok && (val == defaultMXJobTrainingType) {
 		log.Debugf("the mxjob %s with labels %s", item.Name, val)
 	} else {
 		return false
@@ -442,7 +447,7 @@ func getPodsOfMXJob(name string, mt *MXJobTrainer, podList []v1.Pod) (pods []v1.
 		if !mt.isMXJobPod(name, namespace, item) {
 			continue
 		}
-		if item.Labels["mxnet-replica-type"] == "worker" && item.Labels["mxnet-replica-index"] == "0"{
+		if item.Labels["mxnet-replica-type"] == "worker" && item.Labels["mxnet-replica-index"] == "0" {
 			chiefPod = item
 			log.Debugf("set pod %s as job pod, and it's time is %v", chiefPod.Name, chiefPod.CreationTimestamp)
 		}

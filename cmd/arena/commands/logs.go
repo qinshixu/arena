@@ -70,11 +70,11 @@ func NewLogsCommand() *cobra.Command {
 			outerArgs.RetryTimeout = time.Millisecond
 			names := []string{}
 			for _, pod := range job.AllPods() {
-				names = append(names, path.Base(pod.ObjectMeta.SelfLink))
+				names = append(names, path.Base(pod.ObjectMeta.GetSelfLink()))
 			}
 			chiefPod := job.ChiefPod()
 			if len(names) > 1 && outerArgs.PodName == "" {
-				names = []string{path.Base(chiefPod.ObjectMeta.SelfLink)}
+				names = []string{path.Base(chiefPod.ObjectMeta.GetSelfLink())}
 			}
 			logPrinter, err := tlogs.NewPodLogPrinter(names, outerArgs)
 			if err != nil {
